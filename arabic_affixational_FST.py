@@ -1,4 +1,3 @@
-import re
 import nltk
 
 """
@@ -14,6 +13,7 @@ import nltk
 """
 
 VOWELS = ["\u064B", "\u064C", "\u064D", "\u064E", "\u064F", "\u0650", "\u0652", "\u0670", "\u0651"]
+
 PREFIX_LEN_3 = ['\u0643\u0627\u0644', '\u0628\u0627\u0644', '\u0648\u0644\u0644', '\u0648\u0627\u0644']
 PREFIX_LEN_2 = ['\u0627\u0644', '\u0644\u0644']
 SUFFIX_LEN_3 = ['\u062a\u0645\u0627', '\u0647\u0645\u0627', '\u062a\u0627\u0646', '\u062a\u064a\u0646',
@@ -22,13 +22,16 @@ SUFFIX_LEN_2 = ['\u0648\u0646', '\u0627\u062a', '\u0627\u0646', '\u064a\u0646', 
                 '\u0647\u0646', '\u0646\u0627', '\u064a\u0627', '\u0647\u0627', '\u062a\u0645', '\u0643\u0646',
                 '\u0646\u064a', '\u0648\u0627', '\u0645\u0627', '\u0647\u0645']
 
+PREFIX_LEN_1 = ['\u0644', '\u0628', '\u0641', '\u0648', '\u064a', '\u062a', '\u0646', '\u0627']
+SUFFIX_LEN_1 = ['\u0629', '\u0647', '\u064a', '\u0643', '\u062a', '\u0627', '\u0646']
+
 
 def segment(word):
     """ segments a word into its derivational and affixational morphological units"""
     word = remove_vocalization(word)
-    word = long_pre_suf_find(word)
-    word = short_pre_suf_find(word)
-    return word
+    prefix, root, suffix = find_long_affix(word)
+    prefix, root, suffix = find_short_affix(prefix, root, suffix)
+    return [['prefix', prefix], ['root', root], ['suffix', suffix]]
 
 
 def remove_vocalization(word):
@@ -36,7 +39,7 @@ def remove_vocalization(word):
     return ''.join(ch for ch in word if ch not in VOWELS)
 
 
-def long_pre_suf_find(word):
+def find_long_affix(input_word):
     """separates stem+verbal pattern from suffixes and prefixes of of size 2 or 3
     only from words that are length 5 or more (as the root minimally takes
     up 3 letters and then there could be a length one suffix or prefix)"""
@@ -45,63 +48,62 @@ def long_pre_suf_find(word):
     prefix = ''
     suffix = ''
 
-    if len(word) >= 6:
+    if len(input_word) >= 6:
         for p3 in PREFIX_LEN_3:
-            if word.startswith(p3):
-                root = word[3:]
-                prefix = word[:3]
-    # don't grab multiple long prefixes
-    if len(word) >= 5 and not prefix:
+            if input_word.startswith(p3):
+                root = input_word[3:]
+                prefix = input_word[:3]
+    # grab only longer prefix if available
+    if len(input_word) >= 5 and not prefix:
         for p2 in PREFIX_LEN_2:
-            if word.startswith(p2):
-                root = word[2:]
-                prefix = word[:2]
+            if input_word.startswith(p2):
+                root = input_word[2:]
+                prefix = input_word[:2]
 
-    if len(word) >= 6:
+    if len(input_word) >= 6:
         for s3 in SUFFIX_LEN_3:
-            if word.endswith(s3):
+            if input_word.endswith(s3):
                 if root:
                     root = root[:-3]
                     suffix = root[-3:]
                 else:
-                    root = word[:-3]
-                    suffix = word[-3:]
-    if len(word) >= 5:
+                    root = input_word[:-3]
+                    suffix = input_word[-3:]
+    if len(input_word) >= 5 and not suffix:
         for s2 in SUFFIX_LEN_2:
-            if word.endswith(s2):
+            if input_word.endswith(s2):
                 if root:
                     root = root[:-2]
                     suffix = root[-2:]
                 else:
-                    root = word[:-2]
-                    suffix = word[-2:]
-    """once we have stripped the root word of these longer affixes, we will
-    look to see if we have found a root word, and then look to remove the
-    somewhat ambiguous 'and' marker"""
-    if root:
-        """if the word starts with the "and" marker "waw", and the root word begins
+                    root = input_word[:-2]
+                    suffix = input_word[-2:]
+
+    """once we have stripped the root input_word of these longer affixes, we will
+    look to see if we have found a root input_word, and then look to remove the
+    somewhat ambiguous 'and' particle و"""
+    if len(root) >= 4 and root[:2] == '\u0648\u0648':
+        """if the input_word starts with the "and" marker "waw", and the root input_word begins
         with that letter, then we can assume that the first "waw" corresponds to
         the affix "and" - as it is extremely uncommon to have words of such 
-        len (i.e. >= 4) whose first too letters would be the consonant "w" and 
+        len (i.e. >= 4) whose first two letters would be the consonant "w" and 
         the long vowel "uu" whose form is identical in Arabic.
         If we find this append to the prefix gathered already so far"""
-        if len(root) >= 4 and root[:2] == '\u0648\u0648':
-            prefix = '\u0648' + prefix
-            root = root[1:]
-    else:
-        """check for the 'and' marker in the case we haven't found an seperable
-        word yet"""
-        if len(word) >= 4 and word[:2] == '\u0648\u0648':
-            prefix = '\u0648'
-            root = word[1:]
-    """if we haven't found any long affix so far make the root word equal to the input"""
+        prefix = '\u0648' + prefix
+        root = root[1:]
+    elif len(input_word) >= 4 and input_word[:2] == '\u0648\u0648':
+        """check for the 'and' marker in the case we haven't found a separable input_word yet"""
+        prefix = '\u0648'
+        root = input_word[1:]
+    
+    """if we haven't found any long affix so far make the root input_word equal to the input word"""
     if not root:
-        root = word
+        root = input_word
 
-    return [["prefix", prefix], ['root', root], ['suffix', suffix]]
+    return prefix, root, suffix
 
 
-def short_pre_suf_find(word):
+def find_short_affix(prefix, root, suffix):
     """length one suffixes and prefixes are separated from the 'main'
     part of the word. Depending on the length of the word, we would
     expect to find different verbal patterns (found in the extremely
@@ -113,106 +115,90 @@ def short_pre_suf_find(word):
     to understand in order to figure out which letters are actually
     suffix or prefixes"""
 
-    pre_len_1 = ['\u0644', '\u0628', '\u0641', '\u0648', '\u064a', '\u062a', '\u0646', '\u0627']
-    suf_len_1 = ['\u0629', '\u0647', '\u064a', '\u0643', '\u062a', '\u0627', '\u0646']
     five_pat = {0: ['\u0627', '\u062a'], 1: ['\u0627', '\u064a', '\u0648'], 2: ['\u0627', '\u062a', '\u0645'],
                 3: ['\u0645', '\u064a', '\u062a'], 4: ['\u0645', '\u062a'], 5: ['\u0627', '\u0648'],
                 6: ['\u0627', '\u0645']}
-    s_found = False
-    p_found = False
-    if word[2][1] != "":
-        s_found = True
-    if word[0][1] != "":
-        p_found = True
     #  مفعل - فاعل - فعال - فعول - فعيل - فعلة
-    if len(word[1][1]) == 4 and word[1][1][0] != '\u0645' and word[1][1][1] != '\u0627' and word[1][1][
-        2] != '\u0627' and word[1][1][2] != '\u0648' and word[1][1][2] != '\u064A' and word[1][1][3] != '\u0629':
-        for s1 in suf_len_1:
-            if word[1][1].endswith(s1) and s_found == False:
-                word[2][1] = word[1][1][-1] + word[2][1]
-                word[1][1] = word[1][1][:-1]
+    if len(root) == 4 and root[0] != '\u0645' and root[1] != '\u0627' and root[
+        2] != '\u0627' and root[2] != '\u0648' and root[2] != '\u064A' and root[3] != '\u0629':
+        for s1 in SUFFIX_LEN_1:
+            if root.endswith(s1) and not suffix:
+                suffix = root[-1] + suffix
+                root = root[:-1]
                 s_found = True
-        if len(word[1][1]) == 4:
-            for p1 in pre_len_1:
-                if word[1][1].startswith(p1) and p_found == False:
-                    word[0][1] = word[0][1] + word[1][1][0]
-                    word[1][1] = word[1][1][1:]
-                    p_found == True
-    # افتعل - افاعل - مفعول - مفعال - مفعيل - مفعلة - تفعلة - افعلة - مفتعل - يفتعل - تفتعل - مفاعل - تفاعل - فعولة - فعالة - انفعل - منفعل - افعال - فعلان - تفعيل - فاعول - فواعل - فعائل - فاعلة - فعالي -   
-    if len(word[1][1]) == 5 and (word[1][1][2] not in five_pat[0] and word[1][1][0] != '\u0627') and (
-            word[1][1][3] not in five_pat[1] and word[1][1][0] != '\u0645') and (
-            word[1][1][0] not in five_pat[2] and word[1][1][4] != '\u0629') and (
-            word[1][1][0] not in five_pat[3] and word[1][1][2] != '\u062A') and (
-            word[1][1][0] not in five_pat[4] and word[1][1][2] != '\u0627') and (
-            word[1][1][2] not in five_pat[5] and word[1][1][4] != '\u0629') and (
-            word[1][1][0] not in five_pat[6] and word[1][1][1] != '\u0646') and (
-            word[1][1][3] != '\u0627' and word[1][1][0] != '\u0627') and (
-            word[1][1][4] != '\u0646' and word[1][1][3] != '\u0627') and (
-            word[1][1][3] != '\u064A' and word[1][1][0] != '\u062A') and (
-            word[1][1][3] != '\u0648' and word[1][1][1] != '\u0627') and (
-            word[1][1][2] != '\u0627' and word[1][1][1] != '\u0648') and (
-            word[1][1][3] != '\u0626' and word[1][1][2] != '\u0627') and (
-            word[1][1][4] != '\u0629' and word[1][1][1] != '\u0627') and (
-            word[1][1][4] != '\u064A' and word[1][1][2] != '\u0627'):
-        for s1 in suf_len_1:
-            if word[1][1].endswith(s1) and s_found == False:
-                word[2][1] = word[1][1][-1] + word[2][1]
-                word[1][1] = word[1][1][:-1]
+        if len(root) == 4:
+            for p1 in PREFIX_LEN_1:
+                if root.startswith(p1) and not prefix:
+                    prefix = prefix + root[0]
+                    root = root[1:]
+    # افتعل - افاعل - مفعول - مفعال - مفعيل - مفعلة - تفعلة - افعلة - مفتعل - يفتعل - تفتعل - مفاعل - تفاعل - فعولة - فعالة - انفعل - منفعل - افعال - فعلان - تفعيل - فاعول - فواعل - فعائل - فاعلة - فعالي -
+    if len(root) == 5 and (root[2] not in five_pat[0] and root[0] != '\u0627') and (
+            root[3] not in five_pat[1] and root[0] != '\u0645') and (
+            root[0] not in five_pat[2] and root[4] != '\u0629') and (
+            root[0] not in five_pat[3] and root[2] != '\u062A') and (
+            root[0] not in five_pat[4] and root[2] != '\u0627') and (
+            root[2] not in five_pat[5] and root[4] != '\u0629') and (
+            root[0] not in five_pat[6] and root[1] != '\u0646') and (
+            root[3] != '\u0627' and root[0] != '\u0627') and (
+            root[4] != '\u0646' and root[3] != '\u0627') and (
+            root[3] != '\u064A' and root[0] != '\u062A') and (
+            root[3] != '\u0648' and root[1] != '\u0627') and (
+            root[2] != '\u0627' and root[1] != '\u0648') and (
+            root[3] != '\u0626' and root[2] != '\u0627') and (
+            root[4] != '\u0629' and root[1] != '\u0627') and (
+            root[4] != '\u064A' and root[2] != '\u0627'):
+        for s1 in SUFFIX_LEN_1:
+            if root.endswith(s1) and not suffix:
+                suffix = root[-1] + suffix
+                root = root[:-1]
                 s_found = True
-        if len(word[1][1]) == 5:
-            for p1 in pre_len_1:
-                if word[1][1].startswith(p1) and p_found == False:
-                    word[0][1] = word[0][1] + word[1][1][0]
-                    word[1][1] = word[1][1][1:]
-                    p_found == True
-    # مستفعل - استفعل - مفعالة - افتعال - افعوعل - تفاعيل - 
-    if len(word[1][1]) == 6 and (word[1][1].startswith('\u0627\u0633\u062a') == False and word[1][1].startswith(
-            '\u0645\u0633\u062a') == False) and (
-            word[1][1][0] != '\u0645' and word[1][1][3] != '\u0627' and word[1][1][5] != '\u0629') and (
-            word[1][1][0] != '\u0627' and word[1][1][2] != '\u062A' and word[1][1][4] != '\u0627') and (
-            word[1][1][0] != '\u0627' and word[1][1][3] != '\u0648' and word[1][1][2] != word[1][1][4]) and (
-            word[1][1][0] != '\u062A' and word[1][1][2] != '\u0627' and word[1][1][4] != '\u0624A'):
-        for s1 in suf_len_1:
-            if word[1][1].endswith(s1) and s_found == False:
-                word[2][1] = word[1][1][-1] + word[2][1]
-                word[1][1] = word[1][1][:-1]
-                s_found = True
-        if len(word[1][1]) == 6:
-            for p1 in pre_len_1:
-                if word[1][1].startswith(p1) and p_found == False:
-                    word[0][1] = word[0][1] + word[1][1][0]
-                    word[1][1] = word[1][1][1:]
-                    p_found == True
-    if len(word[1][1]) == 7:
-        for s1 in suf_len_1:
-            if word[1][1].endswith(s1) and s_found == False:
-                word[2][1] = word[1][1][-1] + word[2][1]
-                word[1][1] = word[1][1][:-1]
-                s_found = True
-        if len(word[1][1]) == 7:
-            for p1 in pre_len_1:
-                if word[1][1].startswith(p1) and p_found == False:
-                    word[0][1] = word[0][1] + word[1][1][0]
-                    word[1][1] = word[1][1][1:]
-                    p_found == True
-        if len(word[1][1]) == 6 and (word[1][1].startswith('\u0627\u0633\u062a') == False and word[1][1].startswith(
-                '\u0645\u0633\u062a') == False) and (
-                word[1][1][0] != '\u0645' and word[1][1][3] != '\u0627' and word[1][1][5] != '\u0629') and (
-                word[1][1][0] != '\u0627' and word[1][1][2] != '\u062A' and word[1][1][4] != '\u0627') and (
-                word[1][1][0] != '\u0627' and word[1][1][3] != '\u0648' and word[1][1][2] != word[1][1][4]) and (
-                word[1][1][0] != '\u062A' and word[1][1][2] != '\u0627' and word[1][1][4] != '\u0624A'):
-            for s1 in suf_len_1:
-                if word[1][1].endswith(s1) and s_found == False:
-                    word[2][1] = word[1][1][-1] + word[2][1]
-                    word[1][1] = word[1][1][:-1]
-                    s_found = True
-            if len(word[1][1]) == 6:
-                for p1 in pre_len_1:
-                    if word[1][1].startswith(p1) and p_found == False:
-                        word[0][1] = word[0][1] + word[1][1][0]
-                        word[1][1] = word[1][1][1:]
-                        p_found == True
-    return word
+        if len(root) == 5:
+            for p1 in PREFIX_LEN_1:
+                if root.startswith(p1) and not prefix:
+                    prefix = prefix + root[0]
+                    root = root[1:]
+    # مستفعل - استفعل - مفعالة - افتعال - افعوعل - تفاعيل -
+    if len(root) == 6 and not (root.startswith('\u0627\u0633\u062a') and root.startswith('\u0645\u0633\u062a')) and (
+            root[0] != '\u0645' and root[3] != '\u0627' and root[5] != '\u0629') and (
+            root[0] != '\u0627' and root[2] != '\u062A' and root[4] != '\u0627') and (
+            root[0] != '\u0627' and root[3] != '\u0648' and root[2] != root[4]) and (
+            root[0] != '\u062A' and root[2] != '\u0627' and root[4] != '\u0624A'):
+        for s1 in SUFFIX_LEN_1:
+            if root.endswith(s1) and not suffix:
+                suffix = root[-1] + suffix
+                root = root[:-1]
+        if len(root) == 6:
+            for p1 in PREFIX_LEN_1:
+                if root.startswith(p1) and not prefix:
+                    prefix = prefix + root[0]
+                    root = root[1:]
+    if len(root) == 7:
+        for s1 in SUFFIX_LEN_1:
+            if root.endswith(s1) and not suffix:
+                suffix = root[-1] + suffix
+                root = root[:-1]
+        if len(root) == 7:
+            for p1 in PREFIX_LEN_1:
+                if root.startswith(p1) and not prefix:
+                    prefix = prefix + root[0]
+                    root = root[1:]
+        if len(root) == 6 and not (root.startswith('\u0627\u0633\u062a') and root.startswith(
+                '\u0645\u0633\u062a')) and (
+                root[0] != '\u0645' and root[3] != '\u0627' and root[5] != '\u0629') and (
+                root[0] != '\u0627' and root[2] != '\u062A' and root[4] != '\u0627') and (
+                root[0] != '\u0627' and root[3] != '\u0648' and root[2] != root[4]) and (
+                root[0] != '\u062A' and root[2] != '\u0627' and root[4] != '\u0624A'):
+            for s1 in SUFFIX_LEN_1:
+                if root.endswith(s1) and not suffix:
+                    suffix = root[-1] + suffix
+                    root = root[:-1]
+            if len(root) == 6:
+                for p1 in PREFIX_LEN_1:
+                    if root.startswith(p1) and not prefix:
+                        prefix = prefix + root[0]
+                        root = root[1:]
+
+    return prefix, root, suffix
 
 
 def analyze(word):
