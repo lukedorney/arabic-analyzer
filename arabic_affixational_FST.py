@@ -25,6 +25,19 @@ SUFFIX_LEN_2 = ['\u0648\u0646', '\u0627\u062a', '\u0627\u0646', '\u064a\u0646', 
 PREFIX_LEN_1 = ['\u0644', '\u0628', '\u0641', '\u0648', '\u064a', '\u062a', '\u0646', '\u0627']
 SUFFIX_LEN_1 = ['\u0629', '\u0647', '\u064a', '\u0643', '\u062a', '\u0627', '\u0646']
 
+non_verbal_p_3 = ['\u0643\u0627\u0644', '\u0628\u0627\u0644', '\u0648\u0644\u0644', '\u0648\u0627\u0644']
+non_verbal_p_2 = ['\u0627\u0644', '\u0644\u0644']
+non_verbal_p_1 = ['\u0648', '\u0644', '\u0628', '\u0641']
+non_verbal_s_3 = ['\u0643\u0645\u0627', '\u0647\u0645\u0627']
+non_verbal_s_2 = ['\u0643\u0645', '\u0643\u0646', '\u0647\u0627', '\u0647\u0645', '\u0647\u0646', '\u0646\u064a']
+non_verbal_s_1 = ['\u064a', '\u0643', '\u0647']
+pres_verbal_p = ['\u064A', '\u062A', '\u0644', '\u0628']
+pres_verbal_s_2 = ['\u064A\u0646', '\u0627\u0646', '\u0648\u0646']
+pres_verbal_s_1 = ['\u0646']
+past_verbal_s_3 = ['\u062a\u0645\u0627']
+past_verbal_s_2 = ['\u0646\u0627', '\u062a\u0645', '\u062a\u0646', '\u062a\u0627', '\u0648\u0627']
+past_verbal_s_1 = ['\u062a', '\u0627', '\u0646']
+
 
 def segment(word):
     """ segments a word into its derivational and affixational morphological units"""
@@ -32,9 +45,9 @@ def segment(word):
     if len(word) > 3:
         prefix, root, suffix = find_long_affix(word)
         prefix, root, suffix = find_short_affix(prefix, root, suffix)
-        return [['prefix', prefix], ['root', root], ['suffix', suffix]]
+        return prefix, root, suffix
     else:
-        return [['prefix', ''], ['root', word], ['suffix', '']]
+        return "", word, ""
 
 
 def remove_vocalization(word):
@@ -193,23 +206,10 @@ def check_len_6(prefix, root, suffix):
     return prefix, root, suffix
 
 
-def analyze(word):
-    """returns the input with the meaning of the separated morphological units"""
+def analyze(prefix, root, suffix):
+    """returns the input with the meaning of the separated morphological units.
 
-    non_verbal_p_3 = ['\u0643\u0627\u0644', '\u0628\u0627\u0644', '\u0648\u0644\u0644', '\u0648\u0627\u0644']
-    non_verbal_p_2 = ['\u0627\u0644', '\u0644\u0644']
-    non_verbal_p_1 = ['\u0648', '\u0644', '\u0628', '\u0641']
-    non_verbal_s_3 = ['\u0643\u0645\u0627', '\u0647\u0645\u0627']
-    non_verbal_s_2 = ['\u0643\u0645', '\u0643\u0646', '\u0647\u0627', '\u0647\u0645', '\u0647\u0646', '\u0646\u064a']
-    non_verbal_s_1 = ['\u064a', '\u0643', '\u0647']
-    pres_verbal_p = ['\u064A', '\u062A', '\u0644', '\u0628']
-    pres_verbal_s_2 = ['\u064A\u0646', '\u0627\u0646', '\u0648\u0646']
-    pres_verbal_s_1 = ['\u0646']
-    past_verbal_s_3 = ['\u062a\u0645\u0627']
-    past_verbal_s_2 = ['\u0646\u0627', '\u062a\u0645', '\u062a\u0646', '\u062a\u0627', '\u0648\u0627']
-    past_verbal_s_1 = ['\u062a', '\u0627', '\u0646']
-
-    """check for pres prefix
+    check for pres prefix
        if so check for suffix if applicable
     if no pres prefix check if there is a past tense suffix
     
@@ -221,220 +221,216 @@ def analyze(word):
     note: Arabic possessive markers are identical to the
     object pronouns that appear on verbs """
 
-    info = ['info', []]
+    info = list()
     p_found = False
     s_found = False
     verbal = False
+    if not(prefix or suffix):
+        info.append("no morphological information")
+        return [prefix, root, suffix, info]
 
-    if word[0][1] != "" and word[0][1] in pres_verbal_p:
-        verbal = True
-        if word[0][1] == "\u064a":  # ي
-            if word[2][1] != "" and word[2][1] in pres_verbal_s_2:
-                if word[2][1] == "\u0627\u0646":  # ان
-                    info[1].append("p+s: 3rd du m non-past")
-                    p_found = True
-                    s_found = True
-                elif word[2][1] == "\u0648\u0646":  # ون
-                    info[1].append("p+s: 3rd pl m non-past")
-                    p_found = True
-                    s_found = True
-            elif word[2][1] != "" and word[2][1] in pres_verbal_s_1:
-                if word[2][1] == "\u0646":  # ن
-                    info[1].append("p+s: 3rd pl f non-past")
-                    p_found = True
-                    s_found = True
-            else:
-                info[1].append("P: 3rd s m non-past")
-                p_found == True
-        elif word[0][1] == "\u062a":  # ت
-            if word[2][1] != "" and word[2][1] in pres_verbal_s_2:
-                if word[2][1] == "\u0627\u0646":  # ان
-                    info[1].append("p+s: 2nd du m/f non-past OR 3rd du f non-past")
-                    p_found = True
-                    s_found = True
-                elif word[2][1] == "\u0648\u0646":  # ون
-                    info[1].append("p+s: 2nd pl m non-past")
-                    p_found = True
-                    s_found = True
-                elif word[2][1] == "\u064a\u0646":  # ين
-                    info[1].append("p+s: 2nd s f non-past")
-                    p_found = True
-                    s_found = True
-            elif word[2][1] != "" and word[2][1] in pres_verbal_s_1:
-                if word[2][1] == "\u0646":  # ن
-                    info[1].append("p+s: 2nd pl f non-past")
-                    p_found = True
-                    s_found = True
-            else:
-                info[1].append("p: 2nd s m non-past OR 3rd s f non-past")
-                p_found == True
-        elif word[0][1] == "\u0627":  # ا
-            info[1].append("p: 1st m/f s non-past")
-            p_found = True
-        elif word[0][1] == "\u0646":  # ن
-            info[1].append("p: 1st m/f pl non-past")
-            p_found = True
-    elif word[2][1] != "" and word[2][1] in past_verbal_s_3:  # تما
-        verbal == True
-        info[1].append("s: 2nd du m/f past")
-        s_found == True
-    elif word[2][1] != "" and word[2][1] in past_verbal_s_2:
-        verbal == True
-        if word[2][1] == "\u0646\u0627":  # نا
-            info[1].append("s: 1st pl m/f past")
-            s_found = True
-        elif word[2][1] == "\u062a\u0645":  # تم
-            info[1].append("s: 2nd p m past")
-            s_found = True
-        elif word[2][1] == "\u062a\u0646":  # تن
-            info[1].append("s: 2nd p f past")
-            s_found = True
-        elif word[2][1] == "\u062a\u0627":  # تا
-            info[1].append("s: 3rd du f past")
-            s_found = True
-        elif word[2][1] == "\u0648\u0627":  # وا
-            info[1].append("s: 3rd pl m past")
-            s_found = True
-    elif word[2][1] != "" and word[2][1] in past_verbal_s_1:
-        verbal = True
-        if word[2][1] == "\u062a":  # ت
-            info[1].append("s: 1st s m/f past OR 2nd s m/f past OR 3rd s f past")
-            s_found = True
-        elif word[2][1] == "\u0627":  # ا
-            info[1].append("s: 3rd du m past")
-            s_found = True
-        elif word[2][1] == "\u0646":  # ن
-            info[1].append("s: 3rd pl f")
-            s_found = True
+    p_found, s_found, verbal = check_verb(prefix, suffix, verbal, p_found, s_found, info)
+    if p_found and s_found:
+        return [prefix, root, suffix, info]
 
-    if p_found == False and word[0][1] != "":
-        if word[0][1] in non_verbal_p_3:
-            if word[0][1] == "\u0643\u0627\u0644":  # كال
-                info[1].append("p: as + def")
-                p_found = True
-            elif word[0][1] == "\u0628\u0627\u0644":  # بال
-                info[1].append("p: by + def")
-                p_found = True
-            elif word[0][1] == "\u0648\u0644\u0644":  # ولل
-                info[1].append("p: and + to + def")
-                p_found = True
-            elif word[0][1] == "\u0648\u0627\u0644":  # وال
-                info[1].append("p: and + def")
-                p_found = True
-        elif word[0][1] in non_verbal_p_2:
-            if word[0][1] == "\u0627\u0644":  # ال
-                info[1].append("p: def")
-                p_found = True
-            elif word[0][1] == "\u0644\u0644":  # لل
-                info[1].append("p: to + def")
-                p_found = True
-        elif word[0][1] in non_verbal_p_1:
-            if word[0][1] == "\u0648":  # و
-                info[1].append("p: and")
-                p_found = True
-            elif word[0][1] == "\u0644":  # ل
-                info[1].append("p: to")
-                p_found = True
-            elif word[0][1] == "\u0628":  # ب
-                info[1].append("p: by")
-                p_found = True
-            elif word[0][1] == "\u0641":  # ف
-                info[1].append("p: so")
-                p_found = True
-    if s_found == False and word[2][1] != "":
-        if word[2][1] in non_verbal_s_3:
+    p_found = check_prefix(info, p_found, prefix)
+    if p_found and s_found:
+        return [prefix, root, suffix, info]
+
+    check_suffix(suffix, s_found, verbal, info)
+
+    if not info:
+        info.append("no morphological information")
+
+    return [prefix, root, suffix, info]
+
+
+def check_suffix(suffix, s_found, verbal, info):
+    if suffix and not s_found:
+        if suffix in non_verbal_s_3:
             if verbal:
-                if word[2][1] == "\u0643\u0645\u0627":  # كما
-                    info[1].append("s: 2nd du m/f object")
-                    s_found = True
-                elif word[2][1] == "\u0647\u0645\u0627":  # هما
-                    info[1].append("s: 3rd du m/f object")
-                    s_found = True
+                if suffix == "\u0643\u0645\u0627":  # كما
+                    info.append("s: 2nd du m/f object")
+                elif suffix == "\u0647\u0645\u0627":  # هما
+                    info.append("s: 3rd du m/f object")
             else:
-                if word[2][1] == "\u0643\u0645\u0627":  # كما
-                    info[1].append("s: 2nd du m/f possessive")
-                    s_found = True
-                elif word[2][1] == "\u0647\u0645\u0627":  # هما
-                    info[1].append("s: 3rd du m/f possesive")
-                    s_found = True
-        elif word[2][1] in non_verbal_s_2:
+                if suffix == "\u0643\u0645\u0627":  # كما
+                    info.append("s: 2nd du m/f possessive")
+                elif suffix == "\u0647\u0645\u0627":  # هما
+                    info.append("s: 3rd du m/f possesive")
+        elif suffix in non_verbal_s_2:
             if verbal:
-                if word[2][1] == "\u0643\u0645":  # كم
-                    info[1].append("s: 2nd pl m object")
-                    s_found = True
-                elif word[2][1] == "\u0643\u0646":  # كن
-                    info[1].append("s: 2rd pl f object")
-                    s_found = True
-                elif word[2][1] == "\u0647\u0627":  # ها
-                    info[1].append("s: 3rd s f object")
-                    s_found = True
-                elif word[2][1] == "\u0647\u0645":  # هم
-                    info[1].append("s: 3rd pl m object")
-                    s_found = True
-                elif word[2][1] == "\u0647\u0646":  # هن
-                    info[1].append("s: 3rd pl f object")
-                    s_found = True
-                elif word[2][1] == "\u0646\u0627":  # نا
-                    info[1].append("s: 1st pl m/f object")
-                    s_found = True
-                elif word[2][1] == "\u0646\u064a":  # ني
-                    info[1].append("s: 1st s m/f object")
-                    s_found = True
+                if suffix == "\u0643\u0645":  # كم
+                    info.append("s: 2nd pl m object")
+                elif suffix == "\u0643\u0646":  # كن
+                    info.append("s: 2rd pl f object")
+                elif suffix == "\u0647\u0627":  # ها
+                    info.append("s: 3rd s f object")
+                elif suffix == "\u0647\u0645":  # هم
+                    info.append("s: 3rd pl m object")
+                elif suffix == "\u0647\u0646":  # هن
+                    info.append("s: 3rd pl f object")
+                elif suffix == "\u0646\u0627":  # نا
+                    info.append("s: 1st pl m/f object")
+                elif suffix == "\u0646\u064a":  # ني
+                    info.append("s: 1st s m/f object")
             else:
-                if word[2][1] == "\u0643\u0645":  # كم
-                    info[1].append("s: 2nd pl m possesive")
-                    s_found = True
-                elif word[2][1] == "\u0643\u0646":  # كن
-                    info[1].append("s: 2rd pl f possesive")
-                    s_found = True
-                elif word[2][1] == "\u0647\u0627":  # ها
-                    info[1].append("s: 3rd s f possesive")
-                    s_found = True
-                elif word[2][1] == "\u0647\u0645":  # هم
-                    info[1].append("s: 3rd pl m possesive")
-                    s_found = True
-                elif word[2][1] == "\u0647\u0646":  # هن
-                    info[1].append("s: 3rd pl f possesive")
-                    s_found = True
-                elif word[2][1] == "\u0646\u0627":  # نا
-                    info[1].append("s: 1st pl m/f possesive")
-                    s_found = True
-        elif word[2][1] in non_verbal_s_1:
+                if suffix == "\u0643\u0645":  # كم
+                    info.append("s: 2nd pl m possesive")
+                elif suffix == "\u0643\u0646":  # كن
+                    info.append("s: 2rd pl f possesive")
+                elif suffix == "\u0647\u0627":  # ها
+                    info.append("s: 3rd s f possesive")
+                elif suffix == "\u0647\u0645":  # هم
+                    info.append("s: 3rd pl m possesive")
+                elif suffix == "\u0647\u0646":  # هن
+                    info.append("s: 3rd pl f possesive")
+                elif suffix == "\u0646\u0627":  # نا
+                    info.append("s: 1st pl m/f possesive")
+        elif suffix in non_verbal_s_1:
             if verbal:
-                if word[2][1] == "\u0647":  # ه
-                    info[1].append("s: 3rd s m object")
-                    s_found = True
-                elif word[2][1] == "\u0643":  # ك
-                    info[1].append("s: 2nd s m/f object")
-                    s_found = True
+                if suffix == "\u0647":  # ه
+                    info.append("s: 3rd s m object")
+                elif suffix == "\u0643":  # ك
+                    info.append("s: 2nd s m/f object")
             else:
-                if word[2][1] == "\u0647":  # ه
-                    info[1].append("s: 3rd s m possesive")
-                    s_found = True
-                elif word[2][1] == "\u064a":  # ي
-                    info[1].append("s: 1st s m/f possessive")
-                    s_found = True
-                elif word[2][1] == "\u0643":  # ك
-                    info[1].append("s: 2nd s m/f possesive")
-                    s_found = True
-    if not info[1]:
-        info[1].append("no morphological information")
-    word.append(info)
-    return word
+                if suffix == "\u0647":  # ه
+                    info.append("s: 3rd s m possesive")
+                elif suffix == "\u064a":  # ي
+                    info.append("s: 1st s m/f possessive")
+                elif suffix == "\u0643":  # ك
+                    info.append("s: 2nd s m/f possesive")
+
+
+def check_prefix(info, p_found, prefix):
+    if not p_found and prefix:
+        if prefix in non_verbal_p_3:
+            if prefix == "\u0643\u0627\u0644":  # كال
+                info.append("p: as + def")
+            elif prefix == "\u0628\u0627\u0644":  # بال
+                info.append("p: by + def")
+            elif prefix == "\u0648\u0644\u0644":  # ولل
+                info.append("p: and + to + def")
+            elif prefix == "\u0648\u0627\u0644":  # وال
+                info.append("p: and + def")
+            p_found = True
+        elif prefix in non_verbal_p_2:
+            if prefix == "\u0627\u0644":  # ال
+                info.append("p: def")
+            elif prefix == "\u0644\u0644":  # لل
+                info.append("p: to + def")
+            p_found = True
+        elif prefix in non_verbal_p_1:
+            if prefix == "\u0648":  # و
+                info.append("p: and")
+            elif prefix == "\u0644":  # ل
+                info.append("p: to")
+            elif prefix == "\u0628":  # ب
+                info.append("p: by")
+            elif prefix == "\u0641":  # ف
+                info.append("p: so")
+            p_found = True
+    return p_found
+
+
+def check_verb(prefix, suffix, verbal, p_found, s_found, info):
+    if prefix:
+        if prefix in pres_verbal_p:
+            verbal = True
+            if prefix == "\u064a":  # ي
+                if suffix and suffix in pres_verbal_s_2:
+                    if suffix == "\u0627\u0646":  # ان
+                        info.append("p+s: 3rd du m non-past")
+                        p_found = True
+                        s_found = True
+                    elif suffix == "\u0648\u0646":  # ون
+                        info.append("p+s: 3rd pl m non-past")
+                        p_found = True
+                        s_found = True
+                elif suffix and suffix in pres_verbal_s_1:
+                    if suffix == "\u0646":  # ن
+                        info.append("p+s: 3rd pl f non-past")
+                        p_found = True
+                        s_found = True
+                else:
+                    info.append("p: 3rd s m non-past")
+                    p_found = True
+            elif prefix == "\u062a":  # ت
+                if suffix != "" and suffix in pres_verbal_s_2:
+                    if suffix == "\u0627\u0646":  # ان
+                        info.append("p+s: 2nd du m/f non-past OR 3rd du f non-past")
+                        p_found = True
+                        s_found = True
+                    elif suffix == "\u0648\u0646":  # ون
+                        info.append("p+s: 2nd pl m non-past")
+                        p_found = True
+                        s_found = True
+                    elif suffix == "\u064a\u0646":  # ين
+                        info.append("p+s: 2nd s f non-past")
+                        p_found = True
+                        s_found = True
+                elif suffix != "" and suffix in pres_verbal_s_1:
+                    if suffix == "\u0646":  # ن
+                        info.append("p+s: 2nd pl f non-past")
+                        p_found = True
+                        s_found = True
+                else:
+                    info.append("p: 2nd s m non-past OR 3rd s f non-past")
+                    p_found = True
+            elif prefix == "\u0627":  # ا
+                info.append("p: 1st m/f s non-past")
+                p_found = True
+            elif prefix == "\u0646":  # ن
+                info.append("p: 1st m/f pl non-past")
+                p_found = True
+    elif suffix:
+        if suffix in past_verbal_s_3:  # تما
+            verbal = True
+            info.append("s: 2nd du m/f past")
+            s_found = True
+        elif suffix in past_verbal_s_2:
+            verbal = True
+            if suffix == "\u0646\u0627":  # نا
+                info.append("s: 1st pl m/f past")
+                s_found = True
+            elif suffix == "\u062a\u0645":  # تم
+                info.append("s: 2nd p m past")
+                s_found = True
+            elif suffix == "\u062a\u0646":  # تن
+                info.append("s: 2nd p f past")
+                s_found = True
+            elif suffix == "\u062a\u0627":  # تا
+                info.append("s: 3rd du f past")
+                s_found = True
+            elif suffix == "\u0648\u0627":  # وا
+                info.append("s: 3rd pl m past")
+                s_found = True
+        elif suffix in past_verbal_s_1:
+            verbal = True
+            if suffix == "\u062a":  # ت
+                info.append("s: 1st s m/f past OR 2nd s m/f past OR 3rd s f past")
+                s_found = True
+            elif suffix == "\u0627":  # ا
+                info.append("s: 3rd du m past")
+                s_found = True
+            elif suffix == "\u0646":  # ن
+                info.append("s: 3rd pl f")
+                s_found = True
+    return p_found, s_found, verbal
 
 
 if __name__ == '__main__':
-    print(analyze(segment("يُريدكم")))  # he likes you all
-    print(analyze(segment("والكتب")))  # and the books
-    print(analyze(segment("ووجه")))  # and a face
-    print(analyze(segment("كتاب")))  # a book
-    print(analyze(segment("يكتبون")))  # they (pl,m) write
-    print(analyze(segment("يكتب")))  # he writes
-    print(analyze(segment("عائلتي")))  # my family
-    print(analyze(segment("يسكنان")))  # they (2,m) reside
-    print(analyze(segment("جدته")))  # his grandmother
-    print(analyze(segment("اليوم")))  # today/the day
-    print(analyze(segment("للدرس")))  # to the lesson
+    print(analyze(*segment("يُريدكم")))  # he likes you all
+    print(analyze(*segment("والكتب")))  # and the books
+    print(analyze(*segment("ووجه")))  # and a face
+    print(analyze(*segment("كتاب")))  # a book
+    print(analyze(*segment("يكتبون")))  # they (pl,m) write
+    print(analyze(*segment("يكتب")))  # he writes
+    print(analyze(*segment("عائلتي")))  # my family
+    print(analyze(*segment("يسكنان")))  # they (2,m) reside
+    print(analyze(*segment("جدته")))  # his grandmother
+    print(analyze(*segment("اليوم")))  # today/the day
+    print(analyze(*segment("للدرس")))  # to the lesson
 
     v = ["\u064B", "\u064C", "\u064D", "\u064E", "\u064F", "\u0650", "\u0652", "\u0670", "\u0651", '.']
     arabic_text = "يولد جميع الناس أحراراً متساوين في الكرامة والحقوق. وقد وهبوا عقلاً وضميراً وعليهم ان يعامل بعضهم " \
@@ -443,7 +439,7 @@ if __name__ == '__main__':
     for i in seg:
         """ check if the unit is actually a word"""
         if i not in v:
-            print(i + "\n" + str(analyze(segment(i))))
+            print(i, "\n", str(analyze(*segment(i))))
 
 """
     next steps could include getting functionality for the digraph "lam+alif",
